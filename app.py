@@ -4,7 +4,7 @@ from utils.preprocessing import preprocess_text
 from utils.visualizer import plot_label_distribution, generate_wordcloud
 
 st.set_page_config(
-    page_title="NLP Playground (EDA)",
+    page_title="NLP Playground",
     page_icon="📜",
     layout="wide"
 )

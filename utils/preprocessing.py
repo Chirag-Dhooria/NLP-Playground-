@@ -8,7 +8,7 @@ except LookupError:
     nltk.download('stopwords')
 
 def _to_lowercase(text):
-    return text.lower()
+    return str(text).lower()
 
 def _remove_punctuation(text):
     return text.translate(str.maketrans('', '', string.punctuation))
