@@ -1,0 +1,30 @@
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache and artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# IDE and editor directories
+.vscode/
+.idea/
+.project
+.settings/
+
+# Streamlit-specific
+.streamlit/
+
+# Environment variables
+.env
+
+# Operating System files
+.DS_Store
+Thumbs.db
