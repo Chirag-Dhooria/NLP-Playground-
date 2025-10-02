@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from wordcloud import WordCloud
 from sklearn.metrics import confusion_matrix
+from sklearn.feature_extraction.text import CountVectorizer
+import pandas as pd
 
 def plot_label_distribution(df, target_column):
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -24,13 +26,27 @@ def generate_wordcloud(df, text_column):
     return fig
 
 def plot_confusion_matrix(y_test, y_pred):
-    """
-    Computes and plots the confusion matrix.
-    """
     cm = confusion_matrix(y_test, y_pred)
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax)
     ax.set_title('Confusion Matrix', fontsize=16)
     ax.set_xlabel('Predicted Label', fontsize=12)
     ax.set_ylabel('True Label', fontsize=12)
+    return fig
+
+def plot_top_ngrams(df, text_column, n=2, top_k=20):
+    """
+    Plots the top K N-grams from a text column.
+    """
+    vec = CountVectorizer(ngram_range=(n, n), stop_words='english').fit(df[text_column].astype(str))
+    bag_of_words = vec.transform(df[text_column].astype(str))
+    sum_words = bag_of_words.sum(axis=0) 
+    words_freq = [(word, sum_words[0, idx]) for word, idx in vec.vocabulary_.items()]
+    words_freq = sorted(words_freq, key = lambda x: x[1], reverse=True)
+    
+    top_df = pd.DataFrame(words_freq[:top_k], columns = ['N-gram', 'Frequency'])
+    
+    fig, ax = plt.subplots(figsize=(12, 8))
+    sns.barplot(x='Frequency', y='N-gram', data=top_df, palette='plasma')
+    ax.set_title(f'Top {top_k} {n}-grams', fontsize=16)
     return fig
