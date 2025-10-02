@@ -3,24 +3,23 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import LinearSVC
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
 def get_model(model_name):
-    """
-    Returns an untrained instance of the selected Scikit-learn model.
-    """
     if model_name == "Logistic Regression":
         return LogisticRegression(random_state=42)
     elif model_name == "Naive Bayes":
         return MultinomialNB()
     elif model_name == "Support Vector Machine (SVM)":
         return LinearSVC(random_state=42)
+    elif model_name == "Random Forest":
+        return RandomForestClassifier(random_state=42)
+    elif model_name == "Gradient Boosting":
+        return GradientBoostingClassifier(random_state=42)
     return None
 
 def train_model(df, text_column, target_column, model, test_size):
-    """
-    Splits data, vectorizes text, and trains the model.
-    """
     X = df[text_column]
     y = df[target_column]
 
@@ -37,9 +36,6 @@ def train_model(df, text_column, target_column, model, test_size):
     return model, vectorizer, X_test_vec, y_test
 
 def evaluate_model(model, X_test_vec, y_test):
-    """
-    Calculates performance metrics for the trained model.
-    """
     y_pred = model.predict(X_test_vec)
     
     accuracy = accuracy_score(y_test, y_pred)
