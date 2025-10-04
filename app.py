@@ -18,7 +18,20 @@ if 'model_results' not in st.session_state:
 
 # --- Header ---
 st.title("NLP Playground 🚀")
-st.markdown("A no-code platform to preprocess data, train, and compare NLP models.")
+# --- ENHANCEMENT 1: Added more descriptive text to the main screen ---
+st.markdown("""
+Welcome to the NLP Playground! This is a no-code platform designed to help you explore, preprocess, and analyze your text data. 
+You can train classical machine learning models for text classification and compare their performance, all without writing a single line of code.
+""")
+
+st.markdown("### How It Works:")
+st.markdown("""
+1.  **Upload Your Data**: Use the sidebar to upload your text dataset in CSV or JSON format.
+2.  **Configure Your Experiment**: Select your text and label columns, choose your desired preprocessing steps, and pick a model to train.
+3.  **Run & Analyze**: Click the "Run Experiment" button. The results, including performance metrics and visualizations, will appear in the main panel.
+4.  **Compare**: Run multiple experiments with different settings and compare the results in the "Model Comparison" tab.
+""")
+
 
 # --- Sidebar UI ---
 with st.sidebar:
@@ -37,12 +50,13 @@ with st.sidebar:
         target_column = st.selectbox("Select Target/Label Column", df.columns)
 
         st.header("3. Preprocessing")
+        # --- ENHANCEMENT 2: Added help text for all preprocessing options ---
         options = {
-            'lowercase': st.checkbox("Convert to Lowercase", value=True),
-            'remove_punctuation': st.checkbox("Remove Punctuation", value=True),
-            'remove_stopwords': st.checkbox("Remove Stopwords"),
-            'lemmatization': st.checkbox("Lemmatization"),
-            'stemming': st.checkbox("Stemming")
+            'lowercase': st.checkbox("Convert to Lowercase", value=True, help="Converts all text to lowercase letters."),
+            'remove_punctuation': st.checkbox("Remove Punctuation", value=True, help="Removes all punctuation characters from the text."),
+            'remove_stopwords': st.checkbox("Remove Stopwords", help="Removes common English words that don't add much meaning (e.g., 'the', 'a', 'is')."),
+            'lemmatization': st.checkbox("Lemmatization", help="Reduces words to their base or dictionary form (e.g., 'running' -> 'run'). Slower but more accurate than stemming."),
+            'stemming': st.checkbox("Stemming", help="Reduces words to their root form (e.g., 'running' -> 'run'). Faster but less accurate than lemmatization.")
         }
 
         st.header("4. Model Selection")
@@ -50,21 +64,36 @@ with st.sidebar:
             "Choose a Model",
             ["Logistic Regression", "Naive Bayes", "Support Vector Machine (SVM)", "Random Forest", "Gradient Boosting"]
         )
+        # --- ENHANCEMENT 3: Added help text for each model ---
+        if model_name == "Logistic Regression":
+            st.info("A simple and efficient linear model for binary and multiclass classification.")
+        elif model_name == "Naive Bayes":
+            st.info("A probabilistic classifier based on Bayes' theorem, works well with text data.")
+        elif model_name == "Support Vector Machine (SVM)":
+            st.info("A powerful model that finds the optimal hyperplane to separate classes.")
+        elif model_name == "Random Forest":
+            st.info("An ensemble model using multiple decision trees to improve accuracy and control overfitting.")
+        elif model_name == "Gradient Boosting":
+            st.info("An ensemble technique that builds models sequentially, each one correcting the errors of its predecessor.")
+
         
         test_size = st.slider("Test Set Size", 0.1, 0.5, 0.2, 0.05)
 
         if st.button("🚀 Run Experiment", use_container_width=True):
-            with st.spinner("Running experiment..."):
+            with st.status("Running experiment...", expanded=True) as status:
+                st.write("Step 1: Preprocessing data...")
                 processed_df = preprocess_text(df.copy(), text_column, options)
+                
+                status.update(label="Step 2: Training model...")
                 model = get_model(model_name)
                 
                 trained_model, vectorizer, X_test_vec, y_test = train_model(
                     processed_df, 'processed_text', target_column, model, test_size
                 )
                 
+                status.update(label="Step 3: Evaluating performance...")
                 metrics, y_pred = evaluate_model(trained_model, X_test_vec, y_test)
                 
-                # Store results for display and comparison
                 run_result = {
                     'model_name': model_name,
                     'test_size': test_size,
@@ -76,18 +105,19 @@ with st.sidebar:
                     'y_pred': y_pred
                 }
                 st.session_state.model_results.append(run_result)
-            st.success("Experiment finished!")
+                status.update(label="Experiment complete!", state="complete", expanded=False)
+
+            st.success("Experiment finished successfully!")
 
 # --- Main Panel ---
 if st.session_state.df is None:
-    st.info("Please upload a dataset to begin.")
+    st.info("Upload a dataset using the sidebar to begin.")
 else:
     tabs = st.tabs(["Data & EDA", "Latest Model Results", "Model Comparison"])
 
     with tabs[0]:
         st.header("Data Preview")
         st.dataframe(st.session_state.df.head())
-
         st.header("Exploratory Data Analysis")
         eda_cols = st.columns(2)
         with eda_cols[0]:
@@ -116,7 +146,7 @@ else:
 
             metric_cols = st.columns(2)
             metric_cols[0].metric("Accuracy Score", f"{latest_result['accuracy']:.4f}")
-            metric_cols[1].metric("F1-Score (Weighted)", f"{latest_result['f1_score']:.4f}")
+            metric_cols[1].metric("F1-Score (Weighted)", f"{latest_result['f1_score']:.4f}", help="The F1-score, weighted by the number of true instances for each label. It's a useful metric for datasets with an imbalanced class distribution.")
 
             st.subheader("Confusion Matrix")
             fig_cm = plot_confusion_matrix(latest_result['y_test'], latest_result['y_pred'])
@@ -124,16 +154,13 @@ else:
             
             st.header("Export")
             export_cols = st.columns(2)
-            # Download Model
             pkl_model = pickle.dumps(latest_result['trained_model'])
-            b64_pkl = base64.b64encode(pkl_model).decode()
             export_cols[0].download_button(
                 label="Download Model (.pkl)",
                 data=pkl_model,
                 file_name=f"{latest_result['model_name']}.pkl",
                 mime="application/octet-stream"
             )
-            # Download Report
             report_df = pd.DataFrame({
                 'Metric': ['Accuracy', 'F1 Score'],
                 'Score': [latest_result['accuracy'], latest_result['f1_score']]
