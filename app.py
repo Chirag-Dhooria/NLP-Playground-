@@ -62,16 +62,43 @@ with st.sidebar:
             "Choose a Model",
             ["Logistic Regression", "Naive Bayes", "Support Vector Machine (SVM)", "Random Forest", "Gradient Boosting"]
         )
+        
+        st.subheader("Model Hyperparameters")
+        params = {}
         if model_name == "Logistic Regression":
-            st.info("A simple and efficient linear model for binary and multiclass classification.")
-        elif model_name == "Naive Bayes":
-            st.info("A probabilistic classifier based on Bayes' theorem, works well with text data.")
+            params['C'] = st.slider(
+                "Regularization (C)", 
+                min_value=0.1, max_value=10.0, value=1.0, step=0.1,
+                help="Lower values specify stronger regularization."
+            )
         elif model_name == "Support Vector Machine (SVM)":
-            st.info("A powerful model that finds the optimal hyperplane to separate classes.")
+            params['C'] = st.slider(
+                "Regularization (C)", 
+                min_value=0.1, max_value=10.0, value=1.0, step=0.1,
+                help="Lower values specify stronger regularization."
+            )
         elif model_name == "Random Forest":
-            st.info("An ensemble model using multiple decision trees to improve accuracy and control overfitting.")
+            params['n_estimators'] = st.slider(
+                "Number of Trees", 
+                min_value=50, max_value=500, value=100, step=50,
+                help="The number of trees in the forest."
+            )
+            params['max_depth'] = st.slider(
+                "Max Tree Depth", 
+                min_value=5, max_value=50, value=10, step=5,
+                help="The maximum depth of the tree."
+            )
         elif model_name == "Gradient Boosting":
-            st.info("An ensemble technique that builds models sequentially, each one correcting the errors of its predecessor.")
+            params['n_estimators'] = st.slider(
+                "Number of Estimators", 
+                min_value=50, max_value=500, value=100, step=50,
+                help="The number of boosting stages to perform."
+            )
+            params['learning_rate'] = st.slider(
+                "Learning Rate", 
+                min_value=0.01, max_value=0.5, value=0.1, step=0.01,
+                help="Shrinks the contribution of each tree."
+            )
 
         
         test_size = st.slider("Test Set Size", 0.1, 0.5, 0.2, 0.05)
@@ -82,7 +109,7 @@ with st.sidebar:
                 processed_df = preprocess_text(df.copy(), text_column, options)
                 
                 status.update(label="Step 2: Training model...")
-                model = get_model(model_name)
+                model = get_model(model_name, params=params)
                 
                 trained_model, vectorizer, X_test_vec, y_test = train_model(
                     processed_df, 'processed_text', target_column, model, test_size
@@ -93,6 +120,7 @@ with st.sidebar:
                 
                 run_result = {
                     'model_name': model_name,
+                    'hyperparameters': str(params),
                     'test_size': test_size,
                     'preprocessing': ", ".join([k for k, v in options.items() if v]),
                     'accuracy': metrics['accuracy'],
@@ -187,6 +215,7 @@ else:
             for result in st.session_state.model_results:
                 results_list.append({
                     "Model": result['model_name'],
+                    "Hyperparameters": result.get('hyperparameters', '{}'),
                     "Accuracy": f"{result['accuracy']:.4f}",
                     "F1-Score": f"{result['f1_score']:.4f}",
                     "Preprocessing Steps": result['preprocessing']
@@ -194,19 +223,18 @@ else:
             comparison_df = pd.DataFrame(results_list)
             st.dataframe(comparison_df)
 
-            # Display results 
             st.markdown("---")
             st.subheader("Download Artifacts for Each Run")
             
             for i, result in enumerate(reversed(st.session_state.model_results)):
                 expander_title = f"**{result['model_name']}** (Accuracy: {result['accuracy']:.4f})"
                 with st.expander(expander_title):
+                    st.write(f"**Hyperparameters:** `{result.get('hyperparameters', '{}')}`")
                     st.write(f"**Preprocessing:** {result['preprocessing']}")
                     st.write(f"**F1-Score:** {result['f1_score']:.4f}")
                     
                     download_cols = st.columns(2)
                     
-                    # Download Model (.pkl)
                     pkl_model = pickle.dumps(result['trained_model'])
                     download_cols[0].download_button(
                         label="Download Model",
@@ -217,7 +245,6 @@ else:
                         use_container_width=True
                     )
 
-                    # Download Report (.csv)
                     report_df = pd.DataFrame({
                         'Metric': ['Accuracy', 'F1 Score'],
                         'Score': [result['accuracy'], result['f1_score']]

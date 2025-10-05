@@ -6,17 +6,21 @@ from sklearn.svm import LinearSVC
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
-def get_model(model_name):
+def get_model(model_name, params={}):
+    """
+    Returns an untrained instance of the selected Scikit-learn model,
+    configured with the provided hyperparameters.
+    """
     if model_name == "Logistic Regression":
-        return LogisticRegression(random_state=42)
+        return LogisticRegression(random_state=42, **params)
     elif model_name == "Naive Bayes":
-        return MultinomialNB()
+        return MultinomialNB() 
     elif model_name == "Support Vector Machine (SVM)":
-        return LinearSVC(random_state=42)
+        return LinearSVC(random_state=42, dual=False, **params)
     elif model_name == "Random Forest":
-        return RandomForestClassifier(random_state=42)
+        return RandomForestClassifier(random_state=42, **params)
     elif model_name == "Gradient Boosting":
-        return GradientBoostingClassifier(random_state=42)
+        return GradientBoostingClassifier(random_state=42, **params)
     return None
 
 def train_model(df, text_column, target_column, model, test_size):
