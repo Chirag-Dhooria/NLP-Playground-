@@ -8,7 +8,7 @@ from utils.visualizer import plot_label_distribution, generate_wordcloud, plot_c
 from utils.model_handler import get_model, train_model, evaluate_model
 
 # --- Page Config ---
-st.set_page_config(page_title="NLP Playground", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="NLP Playground", page_icon="🛝", layout="wide")
 
 # --- State Management ---
 if 'df' not in st.session_state:
@@ -17,7 +17,7 @@ if 'model_results' not in st.session_state:
     st.session_state.model_results = []
 
 # --- Header ---
-st.title("NLP Playground 🚀")
+st.title("NLP Playground 🛝")
 # --- ENHANCEMENT 1: Added more descriptive text to the main screen ---
 st.markdown("""
 Welcome to the NLP Playground! This is a no-code platform designed to help you explore, preprocess, and analyze your text data. 
