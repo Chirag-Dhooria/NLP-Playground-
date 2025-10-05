@@ -18,7 +18,6 @@ if 'model_results' not in st.session_state:
 
 # --- Header ---
 st.title("NLP Playground 🛝")
-# --- ENHANCEMENT 1: Added more descriptive text to the main screen ---
 st.markdown("""
 Welcome to the NLP Playground! This is a no-code platform designed to help you explore, preprocess, and analyze your text data. 
 You can train classical machine learning models for text classification and compare their performance, all without writing a single line of code.
@@ -41,7 +40,8 @@ with st.sidebar:
         st.session_state.df = load_data(uploaded_file)
         if st.session_state.df is not None:
             st.success("File uploaded successfully!")
-            st.session_state.model_results = [] # Clear previous results on new file
+            # This line is commented out to persist results across runs
+            # st.session_state.model_results = [] 
 
     if st.session_state.df is not None:
         df = st.session_state.df
@@ -50,7 +50,6 @@ with st.sidebar:
         target_column = st.selectbox("Select Target/Label Column", df.columns)
 
         st.header("3. Preprocessing")
-        # --- ENHANCEMENT 2: Added help text for all preprocessing options ---
         options = {
             'lowercase': st.checkbox("Convert to Lowercase", value=True, help="Converts all text to lowercase letters."),
             'remove_punctuation': st.checkbox("Remove Punctuation", value=True, help="Removes all punctuation characters from the text."),
@@ -64,7 +63,6 @@ with st.sidebar:
             "Choose a Model",
             ["Logistic Regression", "Naive Bayes", "Support Vector Machine (SVM)", "Random Forest", "Gradient Boosting"]
         )
-        # --- ENHANCEMENT 3: Added help text for each model ---
         if model_name == "Logistic Regression":
             st.info("A simple and efficient linear model for binary and multiclass classification.")
         elif model_name == "Naive Bayes":
@@ -105,6 +103,10 @@ with st.sidebar:
                     'y_pred': y_pred
                 }
                 st.session_state.model_results.append(run_result)
+
+                if len(st.session_state.model_results) > 10:
+                    st.session_state.model_results.pop(0)
+
                 status.update(label="Experiment complete!", state="complete", expanded=False)
 
             st.success("Experiment finished successfully!")
@@ -173,15 +175,64 @@ else:
                 mime="text/csv"
             )
 
+    # --- REFORMATTED MODEL COMPARISON TAB ---
     with tabs[2]:
         st.header("Model Comparison")
+        st.markdown("Here you can compare the results of all experiments from this session.")
+        
         if not st.session_state.model_results:
             st.warning("Run multiple experiments to compare models here.")
         else:
-            comparison_df = pd.DataFrame(st.session_state.model_results).drop(
-                columns=['trained_model', 'y_test', 'y_pred']
-            )
+            # Create a clean DataFrame for display
+            results_list = []
+            for result in st.session_state.model_results:
+                results_list.append({
+                    "Model": result['model_name'],
+                    "Accuracy": f"{result['accuracy']:.4f}",
+                    "F1-Score": f"{result['f1_score']:.4f}",
+                    "Preprocessing Steps": result['preprocessing']
+                })
+            comparison_df = pd.DataFrame(results_list)
             st.dataframe(comparison_df)
-            if st.button("Clear All Results"):
+
+            # --- NEW: Display results in an expander for better organization ---
+            st.markdown("---")
+            st.subheader("Download Artifacts for Each Run")
+            
+            for i, result in enumerate(reversed(st.session_state.model_results)):
+                expander_title = f"**{result['model_name']}** (Accuracy: {result['accuracy']:.4f})"
+                with st.expander(expander_title):
+                    st.write(f"**Preprocessing:** {result['preprocessing']}")
+                    st.write(f"**F1-Score:** {result['f1_score']:.4f}")
+                    
+                    download_cols = st.columns(2)
+                    
+                    # Download Model (.pkl)
+                    pkl_model = pickle.dumps(result['trained_model'])
+                    download_cols[0].download_button(
+                        label="Download Model",
+                        data=pkl_model,
+                        file_name=f"model_{result['model_name']}_{i}.pkl",
+                        mime="application/octet-stream",
+                        key=f"pkl_{i}",
+                        use_container_width=True
+                    )
+
+                    # Download Report (.csv)
+                    report_df = pd.DataFrame({
+                        'Metric': ['Accuracy', 'F1 Score'],
+                        'Score': [result['accuracy'], result['f1_score']]
+                    })
+                    csv_report = report_df.to_csv(index=False).encode('utf-8')
+                    download_cols[1].download_button(
+                        label="Download Report",
+                        data=csv_report,
+                        file_name=f"report_{result['model_name']}_{i}.csv",
+                        mime="text/csv",
+                        key=f"csv_{i}",
+                        use_container_width=True
+                    )
+
+            if st.button("Clear All Results", use_container_width=True):
                 st.session_state.model_results = []
                 st.rerun()
