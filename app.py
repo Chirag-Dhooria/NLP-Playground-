@@ -7,16 +7,16 @@ from utils.preprocessing import preprocess_text
 from utils.visualizer import plot_label_distribution, generate_wordcloud, plot_confusion_matrix, plot_top_ngrams
 from utils.model_handler import get_model, train_model, evaluate_model
 
-# --- Page Config ---
+
 st.set_page_config(page_title="NLP Playground", page_icon="🛝", layout="wide")
 
-# --- State Management ---
+
 if 'df' not in st.session_state:
     st.session_state.df = None
 if 'model_results' not in st.session_state:
     st.session_state.model_results = []
 
-# --- Header ---
+
 st.title("NLP Playground 🛝")
 st.markdown("""
 Welcome to the NLP Playground! This is a no-code platform designed to help you explore, preprocess, and analyze your text data. 
@@ -32,7 +32,7 @@ st.markdown("""
 """)
 
 
-# --- Sidebar UI ---
+
 with st.sidebar:
     st.header("1. Data Upload")
     uploaded_file = st.file_uploader("Upload a CSV or JSON file", type=["csv", "json"])
@@ -40,8 +40,7 @@ with st.sidebar:
         st.session_state.df = load_data(uploaded_file)
         if st.session_state.df is not None:
             st.success("File uploaded successfully!")
-            # This line is commented out to persist results across runs
-            # st.session_state.model_results = [] 
+            
 
     if st.session_state.df is not None:
         df = st.session_state.df
@@ -111,7 +110,7 @@ with st.sidebar:
 
             st.success("Experiment finished successfully!")
 
-# --- Main Panel ---
+
 if st.session_state.df is None:
     st.info("Upload a dataset using the sidebar to begin.")
 else:
@@ -175,7 +174,7 @@ else:
                 mime="text/csv"
             )
 
-    # --- REFORMATTED MODEL COMPARISON TAB ---
+    
     with tabs[2]:
         st.header("Model Comparison")
         st.markdown("Here you can compare the results of all experiments from this session.")
@@ -183,7 +182,7 @@ else:
         if not st.session_state.model_results:
             st.warning("Run multiple experiments to compare models here.")
         else:
-            # Create a clean DataFrame for display
+            
             results_list = []
             for result in st.session_state.model_results:
                 results_list.append({
@@ -195,7 +194,7 @@ else:
             comparison_df = pd.DataFrame(results_list)
             st.dataframe(comparison_df)
 
-            # --- NEW: Display results in an expander for better organization ---
+            # Display results 
             st.markdown("---")
             st.subheader("Download Artifacts for Each Run")
             
