@@ -1,37 +1,47 @@
 import streamlit as st
 import pandas as pd
 import pickle
-import base64
 from utils.data_loader import load_data
 from utils.preprocessing import preprocess_text
-from utils.visualizer import plot_label_distribution, generate_wordcloud, plot_confusion_matrix, plot_top_ngrams
+from utils.visualizer import (
+    plot_label_distribution, generate_wordcloud, 
+    plot_confusion_matrix, plot_top_ngrams,
+    plot_model_comparison, plot_feature_importance,
+    plot_learning_curve
+)
 from utils.model_handler import get_model, train_model, evaluate_model
 
-
 st.set_page_config(page_title="NLP Playground", page_icon="🛝", layout="wide")
-
 
 if 'df' not in st.session_state:
     st.session_state.df = None
 if 'model_results' not in st.session_state:
     st.session_state.model_results = []
 
+def generate_automated_report(result, df):
+    report = f"# NLP Playground: Automated Experiment Report\n\n"
+    report += f"## 1. Dataset Summary\n"
+    report += f"- Total Rows: {len(df)}\n"
+    report += f"- Columns Detected: {', '.join(df.columns.tolist())}\n\n"
+    report += f"## 2. Preprocessing Configuration\n"
+    report += f"- Operations Applied: {result['preprocessing']}\n\n"
+    report += f"## 3. Model & Training Details\n"
+    report += f"- Algorithm: {result['model_name']}\n"
+    report += f"- Hyperparameters: {result['hyperparameters']}\n"
+    report += f"- Test Split Ratio: {result['test_size']}\n\n"
+    report += f"## 4. Performance Insights\n"
+    report += f"- Accuracy Score: {result['accuracy']:.4f}\n"
+    report += f"- Weighted F1-Score: {result['f1_score']:.4f}\n\n"
+    report += f"## 5. Visual Insights Summary\n"
+    report += f"- The model was trained using TF-IDF feature extraction.\n"
+    report += f"- Learning curves and confusion matrices are available in the dashboard for detailed error analysis.\n"
+    return report
 
 st.title("NLP Playground 🛝")
 st.markdown("""
 Welcome to the NLP Playground! This is a no-code platform designed to help you explore, preprocess, and analyze your text data. 
 You can train classical machine learning models for text classification and compare their performance, all without writing a single line of code.
 """)
-
-st.markdown("### How It Works:")
-st.markdown("""
-1.  **Upload Your Data**: Use the sidebar to upload your text dataset in CSV or JSON format.
-2.  **Configure Your Experiment**: Select your text and label columns, choose your desired preprocessing steps, and pick a model to train.
-3.  **Run & Analyze**: Click the "Run Experiment" button. The results, including performance metrics and visualizations, will appear in the main panel.
-4.  **Compare**: Run multiple experiments with different settings and compare the results in the "Model Comparison" tab.
-""")
-
-
 
 with st.sidebar:
     st.header("1. Data Upload")
@@ -40,7 +50,6 @@ with st.sidebar:
         st.session_state.df = load_data(uploaded_file)
         if st.session_state.df is not None:
             st.success("File uploaded successfully!")
-            
 
     if st.session_state.df is not None:
         df = st.session_state.df
@@ -50,11 +59,11 @@ with st.sidebar:
 
         st.header("3. Preprocessing")
         options = {
-            'lowercase': st.checkbox("Convert to Lowercase", value=True, help="Converts all text to lowercase letters."),
-            'remove_punctuation': st.checkbox("Remove Punctuation", value=True, help="Removes all punctuation characters from the text."),
-            'remove_stopwords': st.checkbox("Remove Stopwords", help="Removes common English words that don't add much meaning (e.g., 'the', 'a', 'is')."),
-            'lemmatization': st.checkbox("Lemmatization", help="Reduces words to their base or dictionary form (e.g., 'running' -> 'run'). Slower but more accurate than stemming."),
-            'stemming': st.checkbox("Stemming", help="Reduces words to their root form (e.g., 'running' -> 'run'). Faster but less accurate than lemmatization.")
+            'lowercase': st.checkbox("Convert to Lowercase", value=True),
+            'remove_punctuation': st.checkbox("Remove Punctuation", value=True),
+            'remove_stopwords': st.checkbox("Remove Stopwords"),
+            'lemmatization': st.checkbox("Lemmatization"),
+            'stemming': st.checkbox("Stemming")
         }
 
         st.header("4. Model Selection")
@@ -66,57 +75,34 @@ with st.sidebar:
         st.subheader("Model Hyperparameters")
         params = {}
         if model_name == "Logistic Regression":
-            params['C'] = st.slider(
-                "Regularization (C)", 
-                min_value=0.1, max_value=10.0, value=1.0, step=0.1,
-                help="Lower values specify stronger regularization."
-            )
+            params['C'] = st.slider("Regularization (C)", 0.01, 10.0, 1.0)
+            params['max_iter'] = st.select_slider("Max Iterations", options=[100, 500, 1000], value=100)
+        elif model_name == "Naive Bayes":
+            params['alpha'] = st.slider("Alpha", 0.0, 2.0, 1.0)
         elif model_name == "Support Vector Machine (SVM)":
-            params['C'] = st.slider(
-                "Regularization (C)", 
-                min_value=0.1, max_value=10.0, value=1.0, step=0.1,
-                help="Lower values specify stronger regularization."
-            )
+            params['C'] = st.slider("Regularization (C)", 0.01, 10.0, 1.0)
         elif model_name == "Random Forest":
-            params['n_estimators'] = st.slider(
-                "Number of Trees", 
-                min_value=50, max_value=500, value=100, step=50,
-                help="The number of trees in the forest."
-            )
-            params['max_depth'] = st.slider(
-                "Max Tree Depth", 
-                min_value=5, max_value=50, value=10, step=5,
-                help="The maximum depth of the tree."
-            )
+            params['n_estimators'] = st.slider("Trees", 50, 500, 100, 50)
+            params['max_depth'] = st.slider("Max Depth", 5, 50, 10)
         elif model_name == "Gradient Boosting":
-            params['n_estimators'] = st.slider(
-                "Number of Estimators", 
-                min_value=50, max_value=500, value=100, step=50,
-                help="The number of boosting stages to perform."
-            )
-            params['learning_rate'] = st.slider(
-                "Learning Rate", 
-                min_value=0.01, max_value=0.5, value=0.1, step=0.01,
-                help="Shrinks the contribution of each tree."
-            )
+            params['n_estimators'] = st.slider("Estimators", 50, 500, 100, 50)
+            params['learning_rate'] = st.slider("Learning Rate", 0.01, 0.5, 0.1)
 
-        
         test_size = st.slider("Test Set Size", 0.1, 0.5, 0.2, 0.05)
 
         if st.button("🚀 Run Experiment", use_container_width=True):
             with st.status("Running experiment...", expanded=True) as status:
-                st.write("Step 1: Preprocessing data...")
+                st.write("Step 1: Preprocessing...")
                 processed_df = preprocess_text(df.copy(), text_column, options)
                 
-                status.update(label="Step 2: Training model...")
+                status.update(label="Step 2: Training...")
                 model = get_model(model_name, params=params)
-                
-                trained_model, vectorizer, X_test_vec, y_test = train_model(
+                trained_model, vec, X_tr, y_tr, X_te, y_te = train_model(
                     processed_df, 'processed_text', target_column, model, test_size
                 )
                 
-                status.update(label="Step 3: Evaluating performance...")
-                metrics, y_pred = evaluate_model(trained_model, X_test_vec, y_test)
+                status.update(label="Step 3: Evaluating...")
+                metrics, y_pred = evaluate_model(trained_model, X_te, y_te)
                 
                 run_result = {
                     'model_name': model_name,
@@ -126,21 +112,18 @@ with st.sidebar:
                     'accuracy': metrics['accuracy'],
                     'f1_score': metrics['f1_score'],
                     'trained_model': trained_model,
-                    'y_test': y_test,
+                    'vectorizer': vec,
+                    'X_train_vec': X_tr,
+                    'y_train': y_tr,
+                    'y_test': y_te,
                     'y_pred': y_pred
                 }
                 st.session_state.model_results.append(run_result)
-
-                if len(st.session_state.model_results) > 10:
-                    st.session_state.model_results.pop(0)
-
-                status.update(label="Experiment complete!", state="complete", expanded=False)
-
-            st.success("Experiment finished successfully!")
-
+                status.update(label="Complete!", state="complete", expanded=False)
+            st.success("Experiment finished!")
 
 if st.session_state.df is None:
-    st.info("Upload a dataset using the sidebar to begin.")
+    st.info("Upload data to begin.")
 else:
     tabs = st.tabs(["Data & EDA", "Latest Model Results", "Model Comparison"])
 
@@ -148,117 +131,44 @@ else:
         st.header("Data Preview")
         st.dataframe(st.session_state.df.head())
         st.header("Exploratory Data Analysis")
-        eda_cols = st.columns(2)
-        with eda_cols[0]:
-            st.subheader("Label Distribution")
-            fig_dist = plot_label_distribution(st.session_state.df, target_column)
-            st.pyplot(fig_dist)
-        with eda_cols[1]:
-            st.subheader("Word Cloud (from original text)")
-            fig_wc = generate_wordcloud(st.session_state.df, text_column)
-            st.pyplot(fig_wc)
-        
-        st.subheader("N-gram Analysis")
-        n_gram = st.slider("Select N for N-grams", 2, 5, 2)
-        top_k = st.slider("Select Top K results", 10, 50, 20)
-        fig_ngram = plot_top_ngrams(st.session_state.df, text_column, n=n_gram, top_k=top_k)
-        st.pyplot(fig_ngram)
-
+        cols = st.columns(2)
+        cols[0].pyplot(plot_label_distribution(st.session_state.df, target_column))
+        cols[1].pyplot(generate_wordcloud(st.session_state.df, text_column))
+        st.pyplot(plot_top_ngrams(st.session_state.df, text_column))
 
     with tabs[1]:
-        st.header("Latest Model Results")
-        if not st.session_state.model_results:
-            st.warning("No experiments have been run yet.")
-        else:
-            latest_result = st.session_state.model_results[-1]
-            st.subheader(f"Results for: {latest_result['model_name']}")
+        if st.session_state.model_results:
+            latest = st.session_state.model_results[-1]
+            st.header(f"Results: {latest['model_name']}")
+            m_cols = st.columns(2)
+            m_cols[0].metric("Accuracy", f"{latest['accuracy']:.4f}")
+            m_cols[1].metric("F1-Score", f"{latest['f1_score']:.4f}")
 
-            metric_cols = st.columns(2)
-            metric_cols[0].metric("Accuracy Score", f"{latest_result['accuracy']:.4f}")
-            metric_cols[1].metric("F1-Score (Weighted)", f"{latest_result['f1_score']:.4f}", help="The F1-score, weighted by the number of true instances for each label. It's a useful metric for datasets with an imbalanced class distribution.")
+            st.subheader("Performance Visualizations")
+            v_cols = st.columns(2)
+            v_cols[0].pyplot(plot_confusion_matrix(latest['y_test'], latest['y_pred']))
+            v_cols[1].pyplot(plot_learning_curve(get_model(latest['model_name']), latest['X_train_vec'], latest['y_train']))
 
-            st.subheader("Confusion Matrix")
-            fig_cm = plot_confusion_matrix(latest_result['y_test'], latest_result['y_pred'])
-            st.pyplot(fig_cm)
-            
-            st.header("Export")
-            export_cols = st.columns(2)
-            pkl_model = pickle.dumps(latest_result['trained_model'])
-            export_cols[0].download_button(
-                label="Download Model (.pkl)",
-                data=pkl_model,
-                file_name=f"{latest_result['model_name']}.pkl",
-                mime="application/octet-stream"
-            )
-            report_df = pd.DataFrame({
-                'Metric': ['Accuracy', 'F1 Score'],
-                'Score': [latest_result['accuracy'], latest_result['f1_score']]
-            })
-            csv_report = report_df.to_csv(index=False).encode('utf-8')
-            export_cols[1].download_button(
-                label="Download Report (.csv)",
-                data=csv_report,
-                file_name=f"{latest_result['model_name']}_report.csv",
-                mime="text/csv"
-            )
+            st.subheader("Feature Significance")
+            fig_imp = plot_feature_importance(latest['trained_model'], latest['vectorizer'])
+            if fig_imp: st.pyplot(fig_imp)
 
-    
+            st.header("Automated Insights & Export")
+            exp_cols = st.columns(3)
+            report_text = generate_automated_report(latest, st.session_state.df)
+            exp_cols[0].download_button("Download Full Report (.md)", report_text, f"report_{latest['model_name']}.md")
+            pkl_data = pickle.dumps(latest['trained_model'])
+            exp_cols[1].download_button("Download Model (.pkl)", pkl_data, f"{latest['model_name']}.pkl")
+            csv_rep = pd.DataFrame({'Metric':['Accuracy','F1'], 'Score':[latest['accuracy'], latest['f1_score']]}).to_csv(index=False).encode('utf-8')
+            exp_cols[2].download_button("Download Metrics (.csv)", csv_rep, f"metrics_{latest['model_name']}.csv")
+
     with tabs[2]:
-        st.header("Model Comparison")
-        st.markdown("Here you can compare the results of all experiments from this session.")
-        
-        if not st.session_state.model_results:
-            st.warning("Run multiple experiments to compare models here.")
-        else:
-            
-            results_list = []
-            for result in st.session_state.model_results:
-                results_list.append({
-                    "Model": result['model_name'],
-                    "Hyperparameters": result.get('hyperparameters', '{}'),
-                    "Accuracy": f"{result['accuracy']:.4f}",
-                    "F1-Score": f"{result['f1_score']:.4f}",
-                    "Preprocessing Steps": result['preprocessing']
-                })
-            comparison_df = pd.DataFrame(results_list)
-            st.dataframe(comparison_df)
-
-            st.markdown("---")
-            st.subheader("Download Artifacts for Each Run")
-            
-            for i, result in enumerate(reversed(st.session_state.model_results)):
-                expander_title = f"**{result['model_name']}** (Accuracy: {result['accuracy']:.4f})"
-                with st.expander(expander_title):
-                    st.write(f"**Hyperparameters:** `{result.get('hyperparameters', '{}')}`")
-                    st.write(f"**Preprocessing:** {result['preprocessing']}")
-                    st.write(f"**F1-Score:** {result['f1_score']:.4f}")
-                    
-                    download_cols = st.columns(2)
-                    
-                    pkl_model = pickle.dumps(result['trained_model'])
-                    download_cols[0].download_button(
-                        label="Download Model",
-                        data=pkl_model,
-                        file_name=f"model_{result['model_name']}_{i}.pkl",
-                        mime="application/octet-stream",
-                        key=f"pkl_{i}",
-                        use_container_width=True
-                    )
-
-                    report_df = pd.DataFrame({
-                        'Metric': ['Accuracy', 'F1 Score'],
-                        'Score': [result['accuracy'], result['f1_score']]
-                    })
-                    csv_report = report_df.to_csv(index=False).encode('utf-8')
-                    download_cols[1].download_button(
-                        label="Download Report",
-                        data=csv_report,
-                        file_name=f"report_{result['model_name']}_{i}.csv",
-                        mime="text/csv",
-                        key=f"csv_{i}",
-                        use_container_width=True
-                    )
-
-            if st.button("Clear All Results", use_container_width=True):
-                st.session_state.model_results = []
-                st.rerun()
+        if st.session_state.model_results:
+            st.header("Performance Benchmarking")
+            st.pyplot(plot_model_comparison(st.session_state.model_results))
+            st.dataframe(pd.DataFrame([{
+                "Model": r['model_name'], "Accuracy": f"{r['accuracy']:.4f}", 
+                "F1": f"{r['f1_score']:.4f}", "Preprocessing": r['preprocessing']
+            } for r in st.session_state.model_results]))
+            if st.button("Clear Results"):
+                st.session_state.model_results = []; st.rerun()

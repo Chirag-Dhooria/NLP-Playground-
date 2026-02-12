@@ -5,7 +5,7 @@ import json
 
 def load_data(uploaded_file):
     """
-    Reads an uploaded CSV or JSON file into a Pandas DataFrame with enhanced error handling.
+    Reads an uploaded CSV or JSON file into a Pandas DataFrame.
     """
     if uploaded_file is None:
         return None
@@ -31,3 +31,8 @@ def load_data(uploaded_file):
     except Exception as e:
         st.error(f"An unexpected error occurred while reading the file: {e}")
         return None
+    
+
+
+
+

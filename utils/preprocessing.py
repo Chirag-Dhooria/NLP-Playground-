@@ -4,7 +4,6 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.tokenize import word_tokenize
 
-# Ensure necessary NLTK data is downloaded
 try:
     stopwords.words('english')
 except LookupError:
@@ -17,7 +16,6 @@ try:
     nltk.data.find('corpora/wordnet')
 except LookupError:
     nltk.download('wordnet')
-
 
 def _to_lowercase(text):
     return str(text).lower()
@@ -45,7 +43,6 @@ def _stem_text(text):
 
 def preprocess_text(df, text_column, options):
     df['processed_text'] = df[text_column]
-
     if options.get('lowercase', False):
         df['processed_text'] = df['processed_text'].apply(_to_lowercase)
     if options.get('remove_punctuation', False):
@@ -56,5 +53,4 @@ def preprocess_text(df, text_column, options):
         df['processed_text'] = df['processed_text'].apply(_lemmatize_text)
     if options.get('stemming', False):
         df['processed_text'] = df['processed_text'].apply(_stem_text)
-
     return df
