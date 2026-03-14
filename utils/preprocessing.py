@@ -32,25 +32,32 @@ def _remove_stopwords(text):
 def _lemmatize_text(text):
     lemmatizer = WordNetLemmatizer()
     words = word_tokenize(text)
-    lemmatized_words = [lemmatizer.lemmatize(word) for word in words]
-    return " ".join(lemmatized_words)
+    return " ".join([lemmatizer.lemmatize(word) for word in words])
 
 def _stem_text(text):
     stemmer = PorterStemmer()
     words = word_tokenize(text)
-    stemmed_words = [stemmer.stem(word) for word in words]
-    return " ".join(stemmed_words)
+    return " ".join([stemmer.stem(word) for word in words])
 
-def preprocess_text(df, text_column, options):
-    df['processed_text'] = df[text_column]
-    if options.get('lowercase', False):
-        df['processed_text'] = df['processed_text'].apply(_to_lowercase)
-    if options.get('remove_punctuation', False):
-        df['processed_text'] = df['processed_text'].apply(_remove_punctuation)
-    if options.get('remove_stopwords', False):
-        df['processed_text'] = df['processed_text'].apply(_remove_stopwords)
-    if options.get('lemmatization', False):
-        df['processed_text'] = df['processed_text'].apply(_lemmatize_text)
-    if options.get('stemming', False):
-        df['processed_text'] = df['processed_text'].apply(_stem_text)
+def preprocess_text(df, text_columns, options, is_qa=False, context_col=None, question_col=None):
+    if is_qa:
+        df['processed_context'] = df[context_col].astype(str)
+        df['processed_question'] = df[question_col].astype(str)
+        cols_to_process = ['processed_context', 'processed_question']
+    else:
+        df['processed_text'] = df[text_columns].astype(str).agg(' '.join, axis=1)
+        cols_to_process = ['processed_text']
+
+    for col in cols_to_process:
+        if options.get('lowercase', False):
+            df[col] = df[col].apply(_to_lowercase)
+        if options.get('remove_punctuation', False):
+            df[col] = df[col].apply(_remove_punctuation)
+        if options.get('remove_stopwords', False):
+            df[col] = df[col].apply(_remove_stopwords)
+        if options.get('lemmatization', False):
+            df[col] = df[col].apply(_lemmatize_text)
+        if options.get('stemming', False):
+            df[col] = df[col].apply(_stem_text)
+            
     return df
