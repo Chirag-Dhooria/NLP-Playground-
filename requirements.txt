@@ -7,3 +7,5 @@ wordcloud
 scikit-learn
 transformers
 torch==2.6.0
+google.generativeai
+python-dotencv
